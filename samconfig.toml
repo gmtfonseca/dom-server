@@ -1,0 +1,11 @@
+version = 0.1
+[default]
+[default.deploy]
+[default.deploy.parameters]
+stack_name = "dom-server"
+s3_bucket = "aws-sam-cli-managed-default-samclisourcebucket-1dcwek9l8b8hw"
+s3_prefix = "dom-server"
+region = "sa-east-1"
+confirm_changeset = true
+capabilities = "CAPABILITY_IAM"
+image_repositories = []

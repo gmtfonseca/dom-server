@@ -1,4 +1,4 @@
-import { IsValidTokenInput } from '@/types'
+import { IsValidTokenInput } from './types'
 
 export default {
   isValidToken: async function (input: IsValidTokenInput): Promise<boolean> {

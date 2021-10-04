@@ -1,4 +1,4 @@
-import { SendEmailInput } from '@/types'
+import { SendEmailInput } from './types'
 
 import {
   SESClient,

@@ -1,0 +1,42 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: dom-server
+  
+Globals:
+  Function:
+    Timeout: 30
+
+Resources:
+  SendEmailFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: dist/
+      Handler: app.lambdaHandler
+      Runtime: nodejs14.x
+      Architectures:
+        - x86_64
+      Environment:
+        Variables:
+          NODE_ENV: production
+          RECAPTCHA_SECRET: dom_secret
+          RECAPTCHA_SCORE_THRESHOLD: 0.5
+          EMAIL_SOURCE: gmtfonseca@gmail.com
+          EMAIL_DEST: gustavofonseca94@gmail.com
+          EMAIL_SUBJECT: Solicitação de orçamento
+      Events:
+        SendEmail:
+          Type: HttpApi
+          Properties:
+            Path: /cart
+            Method: post
+
+Outputs:  
+  SendEmailApi:
+    Description: "API Gateway endpoint URL for Prod stage for SendEmailFunction"
+    Value: !Sub "https://${ServerlessHttpApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/cart/"
+  SendEmailFunction:
+    Description: SendEmailFunction ARN"
+    Value: !GetAtt SendEmailFunction.Arn
+  SendEmailFunctionIamRole:
+    Description: "Implicit IAM Role created for SendEmailFunctionIamRole"
+    Value: !GetAtt SendEmailFunctionRole.Arn

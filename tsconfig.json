@@ -8,10 +8,7 @@
     "strictNullChecks": true,
     "noImplicitAny": true,
     "moduleResolution": "node",
-    "baseUrl": "src",
-    "paths": {
-      "@/*": ["./*"]
-    }
+    "baseUrl": "src"
   },
   "include": ["src"]
 }
