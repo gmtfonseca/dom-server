@@ -3,12 +3,14 @@ import { StatusCodes } from 'http-status-codes'
 import { ErrorResponse } from './util'
 import recaptcha from './recaptcha'
 import ses from './ses'
-import { Email, EventBody } from './types'
+import { Email, Env, EventBody, Response } from './types'
 
 export async function lambdaHandler(
   event: APIGatewayProxyEvent
-): Promise<unknown> {
+): Promise<Response | ErrorResponse> {
   try {
+    const env = loadEnv()
+    console.log('Running with env: ', env)
     console.log('Body: ', event.body)
 
     if (!event.body) {
@@ -20,7 +22,7 @@ export async function lambdaHandler(
       })
     }
     const { recaptchaToken, email } = JSON.parse(event.body) as EventBody
-    await checkRecaptchaAndSendEmail(recaptchaToken, email)
+    return await checkRecaptchaAndSendEmail(env, recaptchaToken, email)
   } catch (e) {
     console.log(e)
     if (e instanceof ErrorResponse) {
@@ -32,13 +34,11 @@ export async function lambdaHandler(
 }
 
 async function checkRecaptchaAndSendEmail(
+  env: Env,
   recaptchaToken: string,
   email: Email
 ) {
-  const env = loadEnv()
-  console.log('Running with env: ', env)
-
-  console.log('Validating recaptcha')
+  console.log('Verifying reCAPTCHA')
   const isValidToken = await recaptcha.isValidToken({
     secret: env.recaptcha.SECRET,
     scoreThreshold: Number(env.recaptcha.SCORE_THRESHOLD),
@@ -47,7 +47,8 @@ async function checkRecaptchaAndSendEmail(
 
   if (!isValidToken) {
     throw new ErrorResponse({
-      title: 'Invalid recaptcha score',
+      title: 'reCAPTCHA inválido',
+      detail: 'Resulado de reCAPTCHA não ultrapossou limite mínimo.',
       statusCode: StatusCodes.BAD_REQUEST,
     })
   }
@@ -63,10 +64,10 @@ async function checkRecaptchaAndSendEmail(
   })
 
   console.log('Done.')
-  return { message: 'Email enviado com sucesso.' }
+  return { message: 'Solicitação de orçamento enviada com sucesso.' }
 }
 
-function loadEnv() {
+function loadEnv(): Env {
   const buildResponseError = (varName: string): ErrorResponse => {
     return new ErrorResponse({
       title: 'Erro de ambiente',

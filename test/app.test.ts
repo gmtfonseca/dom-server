@@ -1,9 +1,19 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+
+import { StatusCodes } from 'http-status-codes'
+import { mocked } from 'ts-jest/utils'
 import { lambdaHandler } from '../src/app'
-import { ErrorResponse } from '../src/util'
+import recaptcha from '../src/recaptcha'
+import ses from '../src/ses'
+
+jest.mock('../src/recaptcha')
+jest.mock('../src/ses')
+
+const mockedRecaptcha = mocked(recaptcha, true)
+const mockedSes = mocked(ses, true)
 
 describe('App', () => {
-  it('should throw error when env vars are not set', async () => {
+  it('should return error when env vars are not set', async () => {
     const OLD_ENV = process.env
     const event = {
       body: JSON.stringify({
@@ -22,7 +32,7 @@ describe('App', () => {
       expect(res.body).toMatchObject({
         title: 'Erro de ambiente',
         detail: `Variável de ambiente "${varName}" não definida.`,
-        statusCode: 500,
+        statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
       })
 
       process.env = OLD_ENV
@@ -35,24 +45,64 @@ describe('App', () => {
     await clearVarAndTest('EMAIL_SUBJECT')
   })
 
-  it('should throw error when no body is passed', async () => {
+  it('should return error when no body is passed', async () => {
     const event = {
       body: '',
-    }
-    try {
-      await lambdaHandler(event as any)
-      console.log('worked')
-    } catch (e) {
-      if (e instanceof ErrorResponse) {
-        expect(e.body).toMatchObject({
-          title: 'Invalid body',
-          statusCode: 400,
-        })
-      }
-    }
+    } as any
+
+    const res = (await lambdaHandler(event)) as any
+    expect(res.body).toMatchObject({
+      title: 'Conteúdo inválido',
+      detail: 'Não é possível enviar um email sem conteúdo',
+      statusCode: StatusCodes.BAD_REQUEST,
+    })
   })
 
-  /* it('should throw error when recaptcha is invalid ', () => {}) */
+  it('should throw error when recaptcha is invalid ', async () => {
+    const body = JSON.stringify({
+      recaptchaToken: 'token',
+      email: {
+        subject: 'To Doe',
+        body: 'Hello world',
+      },
+    })
 
-  /* it('should send email with success', () => {}) */
+    const event = {
+      body,
+    } as any
+
+    mockedRecaptcha.isValidToken.mockResolvedValueOnce(false)
+    const res = (await lambdaHandler(event)) as any
+    expect(res.body).toMatchObject({
+      title: 'reCAPTCHA inválido',
+      detail: 'Resulado de reCAPTCHA não ultrapossou limite mínimo.',
+      statusCode: StatusCodes.BAD_REQUEST,
+    })
+  })
+
+  it('should successfully send email', async () => {
+    const body = JSON.stringify({
+      recaptchaToken: 'token',
+      email: {
+        subject: 'To Doe',
+        body: 'Hello world',
+      },
+    })
+
+    const event = {
+      body,
+    } as any
+
+    mockedRecaptcha.isValidToken.mockResolvedValueOnce(true)
+
+    const sendEmailOutputMock = {
+      MessageId: '1',
+    } as any
+    mockedSes.sendEmail.mockResolvedValueOnce(sendEmailOutputMock)
+
+    const res = (await lambdaHandler(event)) as any
+    expect(res).toMatchObject({
+      message: 'Solicitação de orçamento enviada com sucesso.',
+    })
+  })
 })

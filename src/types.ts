@@ -1,6 +1,26 @@
+export interface Env {
+  recaptcha: RecaptchaEnv
+  email: EmailEnv
+}
+
+interface RecaptchaEnv {
+  SECRET: string
+  SCORE_THRESHOLD: string
+}
+
+interface EmailEnv {
+  SOURCE: string
+  DEST: string
+  SUBJECT: string
+}
+
 export interface EventBody {
   recaptchaToken: string
   email: Email
+}
+
+export interface Response {
+  message: string
 }
 
 export interface ErrorResponseHeaders {
