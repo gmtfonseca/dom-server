@@ -1,16 +1,17 @@
 import { StatusCodes } from 'http-status-codes'
+import { ErrorResponseHeaders, ErrorResponseBody } from 'types'
 
 export class ErrorResponse {
-  public body: string
-  public headers: { 'Content-Type': string }
-  constructor(
-    message = 'An error occurred',
-    public statusCode = StatusCodes.INTERNAL_SERVER_ERROR
-  ) {
-    const body = JSON.stringify({ message })
-    this.body = body
+  headers: ErrorResponseHeaders
+  body: ErrorResponseBody
+  constructor(body: Partial<ErrorResponseBody>) {
     this.headers = {
       'Content-Type': 'application/json',
+    }
+    this.body = {
+      title: body.title || 'Ocorreu um erro',
+      detail: body.detail,
+      statusCode: body.statusCode || StatusCodes.INTERNAL_SERVER_ERROR,
     }
   }
 }
