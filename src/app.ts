@@ -111,7 +111,7 @@ async function checkRecaptchaAndSendEmail(
   if (!isValidToken) {
     throw new ErrorResponse({
       title: 'reCAPTCHA inválido',
-      detail: 'Token de reCAPTCHA não é válido.',
+      detail: 'Token do reCAPTCHA não é válido.',
       statusCode: StatusCodes.BAD_REQUEST,
     })
   }
