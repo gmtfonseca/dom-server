@@ -1,7 +1,7 @@
 import { StatusCodes } from 'http-status-codes'
-import { HttpHeaders, ErrorResponseBody } from 'types'
+import { HttpHeaders, ErrorResponseBody, Response } from 'types'
 
-export class ErrorResponse {
+export class ErrorResponse implements Response {
   headers: HttpHeaders
   body: ErrorResponseBody
   constructor(body: Partial<ErrorResponseBody>) {

@@ -7,7 +7,7 @@ import { Email, Env, EventBody, Response } from './types'
 
 export async function lambdaHandler(
   event: APIGatewayProxyEvent
-): Promise<Response | ErrorResponse> {
+): Promise<Response> {
   try {
     const env = loadEnv()
     console.log('Running with env: ', env)
@@ -22,7 +22,16 @@ export async function lambdaHandler(
       })
     }
     const { recaptchaToken, email } = JSON.parse(event.body) as EventBody
-    return await checkRecaptchaAndSendEmail(env, recaptchaToken, email)
+    await checkRecaptchaAndSendEmail(env, recaptchaToken, email)
+
+    console.log('Done.')
+    return {
+      headers: { 'Content-Type': 'application/json' },
+      body: {
+        message: 'Solicitação de orçamento enviada com sucesso.',
+        statusCode: StatusCodes.OK,
+      },
+    }
   } catch (e) {
     console.log(e)
     if (e instanceof ErrorResponse) {
@@ -62,9 +71,6 @@ async function checkRecaptchaAndSendEmail(
       content: email.content,
     },
   })
-
-  console.log('Done.')
-  return { message: 'Solicitação de orçamento enviada com sucesso.' }
 }
 
 function loadEnv(): Env {

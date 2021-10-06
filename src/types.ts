@@ -19,12 +19,18 @@ export interface EventBody {
   email: Email
 }
 
-export interface Response {
-  message: string
-}
-
 export interface HttpHeaders {
   'Content-Type': string
+}
+
+export interface Response {
+  headers: HttpHeaders
+  body: ResponseBody | ErrorResponseBody
+}
+
+export interface ResponseBody {
+  message: string
+  statusCode: number
 }
 
 export interface ErrorResponseBody {

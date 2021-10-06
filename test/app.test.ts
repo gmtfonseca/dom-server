@@ -102,7 +102,11 @@ describe('App', () => {
 
     const res = (await lambdaHandler(event)) as any
     expect(res).toMatchObject({
-      message: 'Solicitação de orçamento enviada com sucesso.',
+      headers: { 'Content-Type': 'application/json' },
+      body: {
+        message: 'Solicitação de orçamento enviada com sucesso.',
+        statusCode: StatusCodes.OK,
+      },
     })
   })
 })
