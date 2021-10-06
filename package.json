@@ -1,13 +1,13 @@
 {
-  "name": "dom-backend",
+  "name": "dom-server",
   "version": "1.0.0",
   "description": "",
   "main": "app.js",
   "scripts": {
-    "dev": "dotenv -e .env.development src/app.ts",
-    "prod": "dotenv -e .env.production node dist/app.js",
-    "test": "jest",
-    "build": "tsc --project ./"
+    "serve": "sh scripts/serve.sh",
+    "build": "sh scripts/build.sh",
+    "deploy": "sh scripts/deploy.sh",
+    "test": "jest"
   },
   "author": "",
   "license": "ISC",
@@ -22,7 +22,6 @@
     "@types/node": "^16.10.2",
     "@typescript-eslint/eslint-plugin": "^4.32.0",
     "@typescript-eslint/parser": "^4.32.0",
-    "dotenv-cli": "^4.0.0",
     "eslint": "^7.32.0",
     "eslint-config-prettier": "^8.3.0",
     "jest": "^27.2.4",
