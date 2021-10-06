@@ -18,7 +18,7 @@ Resources:
       Environment:
         Variables:
           NODE_ENV: production
-          RECAPTCHA_SECRET: dom_secret
+          RECAPTCHA_SECRET: 6LeAZLEcAAAAAJwGNet_2qzgyGvJtG1QVx_udONl
           RECAPTCHA_SCORE_THRESHOLD: 0.5
           EMAIL_SOURCE: gmtfonseca@gmail.com
           EMAIL_DEST: gustavofonseca94@gmail.com

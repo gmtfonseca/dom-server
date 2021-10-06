@@ -10,11 +10,11 @@ export async function lambdaHandler(
 ): Promise<Response> {
   try {
     const env = loadEnv()
-    console.log('Running with env: ', env)
-    console.log('Body: ', event.body)
+    console.info('Running with env: ', env)
+    console.info('Body: ', event.body)
 
     if (!event.body) {
-      console.log('Invalid body')
+      console.warn('Invalid body')
       throw new ErrorResponse({
         title: 'Conteúdo inválido',
         detail: 'Não é possível enviar um email sem conteúdo',
@@ -24,7 +24,7 @@ export async function lambdaHandler(
     const { recaptchaToken, email } = JSON.parse(event.body) as EventBody
     await checkRecaptchaAndSendEmail(env, recaptchaToken, email)
 
-    console.log('Done.')
+    console.info('Done.')
     return {
       headers: { 'Content-Type': 'application/json' },
       body: {
@@ -33,7 +33,7 @@ export async function lambdaHandler(
       },
     }
   } catch (e) {
-    console.log(e)
+    console.warn(e)
     if (e instanceof ErrorResponse) {
       return e
     } else {
@@ -101,7 +101,7 @@ async function checkRecaptchaAndSendEmail(
   recaptchaToken: string,
   email: Email
 ) {
-  console.log('Verifying reCAPTCHA')
+  console.info('Verifying reCAPTCHA')
   const isValidToken = await recaptcha.isValidToken({
     secret: env.recaptcha.SECRET,
     scoreThreshold: Number(env.recaptcha.SCORE_THRESHOLD),
@@ -116,7 +116,7 @@ async function checkRecaptchaAndSendEmail(
     })
   }
 
-  console.log('Sending email')
+  console.info('Sending email')
   await ses.sendEmail({
     source: env.email.SOURCE,
     dest: [env.email.DEST],
