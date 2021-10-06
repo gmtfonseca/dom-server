@@ -42,37 +42,6 @@ export async function lambdaHandler(
   }
 }
 
-async function checkRecaptchaAndSendEmail(
-  env: Env,
-  recaptchaToken: string,
-  email: Email
-) {
-  console.log('Verifying reCAPTCHA')
-  const isValidToken = await recaptcha.isValidToken({
-    secret: env.recaptcha.SECRET,
-    scoreThreshold: Number(env.recaptcha.SCORE_THRESHOLD),
-    token: recaptchaToken,
-  })
-
-  if (!isValidToken) {
-    throw new ErrorResponse({
-      title: 'reCAPTCHA inválido',
-      detail: 'Resulado de reCAPTCHA não ultrapossou limite mínimo.',
-      statusCode: StatusCodes.BAD_REQUEST,
-    })
-  }
-
-  console.log('Sending email')
-  await ses.sendEmail({
-    source: env.email.SOURCE,
-    dest: [env.email.DEST],
-    email: {
-      subject: email.subject || env.email.SUBJECT,
-      content: email.content,
-    },
-  })
-}
-
 function loadEnv(): Env {
   const buildResponseError = (varName: string): ErrorResponse => {
     return new ErrorResponse({
@@ -125,4 +94,35 @@ function loadEnv(): Env {
   }
 
   return env
+}
+
+async function checkRecaptchaAndSendEmail(
+  env: Env,
+  recaptchaToken: string,
+  email: Email
+) {
+  console.log('Verifying reCAPTCHA')
+  const isValidToken = await recaptcha.isValidToken({
+    secret: env.recaptcha.SECRET,
+    scoreThreshold: Number(env.recaptcha.SCORE_THRESHOLD),
+    token: recaptchaToken,
+  })
+
+  if (!isValidToken) {
+    throw new ErrorResponse({
+      title: 'reCAPTCHA inválido',
+      detail: 'Resulado de reCAPTCHA não ultrapossou limite mínimo.',
+      statusCode: StatusCodes.BAD_REQUEST,
+    })
+  }
+
+  console.log('Sending email')
+  await ses.sendEmail({
+    source: env.email.SOURCE,
+    dest: [env.email.DEST],
+    email: {
+      subject: email.subject || env.email.SUBJECT,
+      content: email.content,
+    },
+  })
 }
