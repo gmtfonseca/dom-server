@@ -17,7 +17,7 @@ export async function lambdaHandler(
       console.warn('Invalid body')
       throw new ErrorResponse({
         title: 'Conteúdo inválido',
-        detail: 'Não é possível enviar um email sem conteúdo',
+        detail: 'Não é possível enviar um email sem conteúdo.',
         statusCode: StatusCodes.BAD_REQUEST,
       })
     }
@@ -111,7 +111,7 @@ async function checkRecaptchaAndSendEmail(
   if (!isValidToken) {
     throw new ErrorResponse({
       title: 'reCAPTCHA inválido',
-      detail: 'Resulado de reCAPTCHA não ultrapossou limite mínimo.',
+      detail: 'Token de reCAPTCHA não é válido.',
       statusCode: StatusCodes.BAD_REQUEST,
     })
   }
