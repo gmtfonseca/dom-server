@@ -1,8 +1,8 @@
 import { StatusCodes } from 'http-status-codes'
-import { ErrorResponseHeaders, ErrorResponseBody } from 'types'
+import { HttpHeaders, ErrorResponseBody } from 'types'
 
 export class ErrorResponse {
-  headers: ErrorResponseHeaders
+  headers: HttpHeaders
   body: ErrorResponseBody
   constructor(body: Partial<ErrorResponseBody>) {
     this.headers = {

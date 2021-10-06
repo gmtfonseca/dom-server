@@ -23,7 +23,7 @@ export interface Response {
   message: string
 }
 
-export interface ErrorResponseHeaders {
+export interface HttpHeaders {
   'Content-Type': string
 }
 
@@ -41,7 +41,7 @@ export interface IsValidTokenInput {
 
 export interface Email {
   subject: string
-  body: string
+  content: string
 }
 
 export interface SendEmailInput {

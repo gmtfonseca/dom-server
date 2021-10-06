@@ -20,7 +20,7 @@ export default {
       Message: {
         Subject: { Data: email.subject },
         Body: {
-          Text: { Data: email.body },
+          Text: { Data: email.content },
         },
       },
       Source: source,

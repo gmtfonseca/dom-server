@@ -59,7 +59,7 @@ async function checkRecaptchaAndSendEmail(
     dest: [env.email.DEST],
     email: {
       subject: email.subject || env.email.SUBJECT,
-      body: email.body,
+      content: email.content,
     },
   })
 

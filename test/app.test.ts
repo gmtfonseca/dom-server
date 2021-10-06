@@ -18,7 +18,7 @@ describe('App', () => {
     const event = {
       body: JSON.stringify({
         email: {
-          body: 'Test',
+          content: 'Test',
         },
       }),
     } as any
