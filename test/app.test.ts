@@ -5,12 +5,15 @@ import { mocked } from 'ts-jest/utils'
 import { lambdaHandler } from '../src/app'
 import recaptcha from '../src/recaptcha'
 import ses from '../src/ses'
+import ssm from '../src/ssm'
 
 jest.mock('../src/recaptcha')
 jest.mock('../src/ses')
+jest.mock('../src/ssm')
 
 const mockedRecaptcha = mocked(recaptcha, true)
 const mockedSes = mocked(ses, true)
+const mockedSsm = mocked(ssm, true)
 
 describe('App', () => {
   it('should return error when env vars are not set', async () => {
@@ -38,7 +41,6 @@ describe('App', () => {
       process.env = OLD_ENV
     }
 
-    await clearVarAndTest('RECAPTCHA_SECRET')
     await clearVarAndTest('RECAPTCHA_SCORE_THRESHOLD')
     await clearVarAndTest('EMAIL_SOURCE')
     await clearVarAndTest('EMAIL_DEST')
@@ -52,18 +54,53 @@ describe('App', () => {
 
     const res = (await lambdaHandler(event)) as any
     expect(res.body).toMatchObject({
-      title: 'Conteúdo inválido',
-      detail: 'Não é possível enviar um email sem conteúdo',
+      title: 'Corpo inválido',
+      detail: 'Nenhum corpo foi especificado na requisição.',
       statusCode: StatusCodes.BAD_REQUEST,
     })
   })
 
-  it('should throw error when recaptcha is invalid ', async () => {
+  it('should return error when email has no content', async () => {
+    const event = {
+      body: JSON.stringify({
+        email: {
+          content: '',
+        },
+      }),
+    } as any
+
+    const res = (await lambdaHandler(event)) as any
+    expect(res.body).toMatchObject({
+      title: 'Email vazio',
+      detail: 'Não é possível enviar um email sem conteúdo.',
+      statusCode: StatusCodes.BAD_REQUEST,
+    })
+  })
+
+  it('should return error when reCAPTCHA secret is not set', async () => {
+    const event = {
+      body: JSON.stringify({
+        email: {
+          content: 'Test',
+        },
+      }),
+    } as any
+
+    mockedSsm.getParameter.mockResolvedValueOnce('')
+    const res = (await lambdaHandler(event)) as any
+    expect(res.body).toMatchObject({
+      title: 'Ocorreu um erro ao verificar o reCAPTCHA',
+      detail: 'Parâmetro com segredo não foi atribuído no SSM.',
+      statusCode: StatusCodes.BAD_REQUEST,
+    })
+  })
+
+  it('should return error when reCAPTCHA is invalid ', async () => {
     const body = JSON.stringify({
       recaptchaToken: 'token',
       email: {
         subject: 'To Doe',
-        body: 'Hello world',
+        content: 'Hello world',
       },
     })
 
@@ -71,11 +108,12 @@ describe('App', () => {
       body,
     } as any
 
+    mockedSsm.getParameter.mockResolvedValueOnce('secret')
     mockedRecaptcha.isValidToken.mockResolvedValueOnce(false)
     const res = (await lambdaHandler(event)) as any
     expect(res.body).toMatchObject({
       title: 'reCAPTCHA inválido',
-      detail: 'Resulado de reCAPTCHA não ultrapossou limite mínimo.',
+      detail: 'Token do reCAPTCHA não é válido.',
       statusCode: StatusCodes.BAD_REQUEST,
     })
   })
@@ -85,7 +123,7 @@ describe('App', () => {
       recaptchaToken: 'token',
       email: {
         subject: 'To Doe',
-        body: 'Hello world',
+        content: 'Hello world',
       },
     })
 
@@ -93,6 +131,7 @@ describe('App', () => {
       body,
     } as any
 
+    mockedSsm.getParameter.mockResolvedValueOnce('secret')
     mockedRecaptcha.isValidToken.mockResolvedValueOnce(true)
 
     const sendEmailOutputMock = {

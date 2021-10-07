@@ -6,6 +6,6 @@ stack_name = "dom-server"
 s3_bucket = "aws-sam-cli-managed-default-samclisourcebucket-zhsyx099yaiv"
 s3_prefix = "dom-server"
 region = "sa-east-1"
-confirm_changeset = true
+confirm_changeset = false
 capabilities = "CAPABILITY_IAM"
 image_repositories = []

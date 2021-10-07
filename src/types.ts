@@ -4,7 +4,6 @@ export interface Env {
 }
 
 interface RecaptchaEnv {
-  SECRET: string
   SCORE_THRESHOLD: string
 }
 
@@ -12,6 +11,11 @@ interface EmailEnv {
   SOURCE: string
   DEST: string
   SUBJECT: string
+}
+
+export interface RecapatchaInput {
+  token: string
+  secret: string
 }
 
 export interface EventBody {

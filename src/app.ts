@@ -1,28 +1,57 @@
 import { APIGatewayProxyEvent } from 'aws-lambda'
 import { StatusCodes } from 'http-status-codes'
 import { ErrorResponse } from './util'
+import { Email, Env, EventBody, RecapatchaInput, Response } from './types'
 import recaptcha from './recaptcha'
 import ses from './ses'
-import { Email, Env, EventBody, Response } from './types'
+import ssm from './ssm'
 
 export async function lambdaHandler(
   event: APIGatewayProxyEvent
 ): Promise<Response> {
   try {
-    const env = loadEnv()
+    const env = loadEnvVariables()
     console.info('Running with env: ', env)
     console.info('Body: ', event.body)
 
     if (!event.body) {
       console.warn('Invalid body')
       throw new ErrorResponse({
-        title: 'Conteúdo inválido',
+        title: 'Corpo inválido',
+        detail: 'Nenhum corpo foi especificado na requisição.',
+        statusCode: StatusCodes.BAD_REQUEST,
+      })
+    }
+
+    const { recaptchaToken, email } = JSON.parse(event.body) as EventBody
+
+    if (!email.content) {
+      console.warn('Invalid email content')
+      throw new ErrorResponse({
+        title: 'Email vazio',
         detail: 'Não é possível enviar um email sem conteúdo.',
         statusCode: StatusCodes.BAD_REQUEST,
       })
     }
-    const { recaptchaToken, email } = JSON.parse(event.body) as EventBody
-    await checkRecaptchaAndSendEmail(env, recaptchaToken, email)
+
+    const recaptchaSecret = await ssm.getParameter(
+      '/dom-server/recaptcha/secret'
+    )
+
+    if (!recaptchaSecret) {
+      console.warn('Recaptcha secret not set')
+      throw new ErrorResponse({
+        title: 'Ocorreu um erro ao verificar o reCAPTCHA',
+        detail: 'Parâmetro com segredo não foi atribuído no SSM.',
+        statusCode: StatusCodes.BAD_REQUEST,
+      })
+    }
+
+    await checkRecaptchaAndSendEmail(
+      env,
+      { token: recaptchaToken, secret: recaptchaSecret },
+      email
+    )
 
     console.info('Done.')
     return {
@@ -42,7 +71,7 @@ export async function lambdaHandler(
   }
 }
 
-function loadEnv(): Env {
+function loadEnvVariables(): Env {
   const buildResponseError = (varName: string): ErrorResponse => {
     return new ErrorResponse({
       title: 'Erro de ambiente',
@@ -53,7 +82,6 @@ function loadEnv(): Env {
 
   const env = {
     recaptcha: {
-      SECRET: '',
       SCORE_THRESHOLD: '',
     },
     email: {
@@ -61,12 +89,6 @@ function loadEnv(): Env {
       DEST: '',
       SUBJECT: '',
     },
-  }
-
-  if (!process.env.RECAPTCHA_SECRET) {
-    throw buildResponseError('RECAPTCHA_SECRET')
-  } else {
-    env.recaptcha.SECRET = process.env.RECAPTCHA_SECRET
   }
 
   if (!process.env.RECAPTCHA_SCORE_THRESHOLD) {
@@ -98,17 +120,18 @@ function loadEnv(): Env {
 
 async function checkRecaptchaAndSendEmail(
   env: Env,
-  recaptchaToken: string,
+  recaptchaInput: RecapatchaInput,
   email: Email
 ) {
   console.info('Verifying reCAPTCHA')
   const isValidToken = await recaptcha.isValidToken({
-    secret: env.recaptcha.SECRET,
+    secret: recaptchaInput.secret,
     scoreThreshold: Number(env.recaptcha.SCORE_THRESHOLD),
-    token: recaptchaToken,
+    token: recaptchaInput.token,
   })
 
   if (!isValidToken) {
+    console.warn('Invalid recaptcha')
     throw new ErrorResponse({
       title: 'reCAPTCHA inválido',
       detail: 'Token do reCAPTCHA não é válido.',
