@@ -18,7 +18,6 @@ Resources:
       Environment:
         Variables:
           NODE_ENV: production
-          RECAPTCHA_SECRET: 6LeAZLEcAAAAAJwGNet_2qzgyGvJtG1QVx_udONl
           RECAPTCHA_SCORE_THRESHOLD: 0.5
           EMAIL_SOURCE: gmtfonseca@gmail.com
           EMAIL_DEST: gustavofonseca94@gmail.com
@@ -36,13 +35,13 @@ Resources:
               Effect: Allow
               Action:
                 - ssm:GetParameter
-              Resource: 'arn:aws:ssm:sa-east-1:491667351100:parameter/dom-server/recaptcha/secret'
+              Resource: !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/dom-server/recaptcha/secret'
 
             - Sid: KMSDecryptRecaptchaSecret
               Effect: Allow
               Action:
                 - kms:Decrypt
-              Resource: 'arn:aws:kms:sa-east-1:491667351100:key/e3505977-a7b6-4d1c-8f89-ac7055ebe467'
+              Resource: !Sub 'arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/e3505977-a7b6-4d1c-8f89-ac7055ebe467'
       Events:
         SendEmail:
           Type: HttpApi
