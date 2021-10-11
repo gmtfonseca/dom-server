@@ -1,10 +1,10 @@
 export interface Env {
-  NODE_ENV: string
   recaptcha: EnvRecaptcha
   email: EnvEmail
 }
 
 interface EnvRecaptcha {
+  ENABLED: string
   SCORE_THRESHOLD: string
 }
 

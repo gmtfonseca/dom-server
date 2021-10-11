@@ -6,17 +6,18 @@ import { compileContentToHTML } from './template'
 import recaptcha from './recaptcha'
 import ses from './ses'
 import ssm from './ssm'
+import logger from './logger'
 
 export async function lambdaHandler(
   event: APIGatewayProxyEvent
 ): Promise<Response> {
   try {
     const env = loadEnvVariables()
-    console.info('Running with env: ', env)
-    console.info('Body: ', event.body)
+    logger.info('Running with env: ' + env)
+    logger.info('Body: ' + event.body)
 
     if (!event.body) {
-      console.warn('Invalid body')
+      logger.warn('Invalid body')
       throw new ErrorResponse({
         title: 'Corpo inválido',
         detail: 'Nenhum corpo foi especificado na requisição.',
@@ -27,7 +28,7 @@ export async function lambdaHandler(
     const { recaptchaToken, email } = JSON.parse(event.body) as EventBody
 
     if (!email.content) {
-      console.warn('Invalid email content')
+      logger.warn('Invalid email content')
       throw new ErrorResponse({
         title: 'Email vazio',
         detail: 'Não é possível enviar um email sem conteúdo.',
@@ -38,7 +39,7 @@ export async function lambdaHandler(
     validateEmailContent(email.content)
 
     await checkRecaptchaAndSendEmail(env, recaptchaToken, email)
-    console.info('Done.')
+    logger.info('Done.')
 
     return {
       headers: { 'Content-Type': 'application/json' },
@@ -48,7 +49,7 @@ export async function lambdaHandler(
       },
     }
   } catch (e) {
-    console.warn(e)
+    logger.warn(e)
     if (e instanceof ErrorResponse) {
       return e
     } else {
@@ -113,13 +114,14 @@ async function checkRecaptchaAndSendEmail(
   recaptchaToken: string,
   email: Email
 ) {
-  if (env.NODE_ENV !== 'development') {
+  const recaptchaEnabled = env.recaptcha.ENABLED === '1'
+  if (recaptchaEnabled) {
     const recaptchaSecret = await ssm.getParameter(
       '/dom-server/recaptcha/secret'
     )
 
     if (!recaptchaSecret) {
-      console.warn('Recaptcha secret not set')
+      logger.warn('reCAPTCHA secret not set')
       throw new ErrorResponse({
         title: 'Ocorreu um erro ao verificar o reCAPTCHA',
         detail: 'Parâmetro com segredo não foi atribuído no SSM.',
@@ -127,7 +129,7 @@ async function checkRecaptchaAndSendEmail(
       })
     }
 
-    console.info('Verifying reCAPTCHA')
+    logger.info('Checking reCAPTCHA')
     const isValidToken = await recaptcha.isValidToken({
       secret: recaptchaSecret,
       scoreThreshold: Number(env.recaptcha.SCORE_THRESHOLD),
@@ -135,7 +137,7 @@ async function checkRecaptchaAndSendEmail(
     })
 
     if (!isValidToken) {
-      console.warn('Invalid recaptcha')
+      logger.warn('Invalid reCAPTCHA')
       throw new ErrorResponse({
         title: 'reCAPTCHA inválido',
         detail: 'Token do reCAPTCHA não é válido.',
@@ -144,10 +146,10 @@ async function checkRecaptchaAndSendEmail(
     }
   }
 
-  console.info('Compiling email HTML')
+  logger.info('Compiling HTML content')
   const htmlContent = compileContentToHTML(email.content)
 
-  console.info('Sending email')
+  logger.info('Sending email')
   await ses.sendEmail({
     source: env.email.SOURCE,
     dest: [env.email.DEST],
@@ -168,8 +170,8 @@ function loadEnvVariables(): Env {
   }
 
   const env = {
-    NODE_ENV: '',
     recaptcha: {
+      ENABLED: '',
       SCORE_THRESHOLD: '',
     },
     email: {
@@ -179,10 +181,10 @@ function loadEnvVariables(): Env {
     },
   }
 
-  if (!process.env.NODE_ENV) {
-    throw buildResponseError('NODE_ENV')
+  if (!process.env.RECAPTCHA_ENABLED) {
+    throw buildResponseError('RECAPTCHA_ENABLED')
   } else {
-    env.NODE_ENV = process.env.NODE_ENV
+    env.recaptcha.ENABLED = process.env.RECAPTCHA_ENABLED
   }
 
   if (!process.env.RECAPTCHA_SCORE_THRESHOLD) {

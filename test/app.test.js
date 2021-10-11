@@ -63,7 +63,7 @@ describe('App', () => {
       process.env = OLD_ENV
     }
 
-    await clearVarAndTest('NODE_ENV')
+    await clearVarAndTest('RECAPTCHA_ENABLED')
     await clearVarAndTest('RECAPTCHA_SCORE_THRESHOLD')
     await clearVarAndTest('EMAIL_SOURCE')
     await clearVarAndTest('EMAIL_DEST')

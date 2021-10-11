@@ -18,9 +18,10 @@ Resources:
       Environment:
         Variables:
           NODE_ENV: production
+          RECAPTCHA_ENABLED: 1
           RECAPTCHA_SCORE_THRESHOLD: 0.5
           EMAIL_SOURCE: gmtfonseca@gmail.com
-          EMAIL_DEST: fonseca@fonseca.ind.br
+          EMAIL_DEST: gustavofonseca94@gmail.com
           EMAIL_SUBJECT: Solicitação de orçamento
       Policies:
         - Statement:
