@@ -2,7 +2,7 @@
   "Parameters": {
     "NODE_ENV": "development",
     "RECAPTCHA_ENABLED": 0,
-    "EMAIL_SOURCE": "gmtfonseca@gmail.com",
+    "EMAIL_SOURCE": "",
     "EMAIL_DEST": "gustavofonseca94@gmail.com"
   }
 }

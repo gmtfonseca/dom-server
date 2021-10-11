@@ -1,19 +1,81 @@
 import { APIGatewayProxyEvent } from 'aws-lambda'
 import { StatusCodes } from 'http-status-codes'
 import { ErrorResponse } from './util'
-import { Email, EmailContent, Env, EventBody, Response } from './types'
+import { Email, Env, EventBody, Response } from './types'
 import { compileContentToHTML } from './template'
 import recaptcha from './recaptcha'
 import ses from './ses'
 import ssm from './ssm'
 import logger from './logger'
 
+const loadEnv = (): Env => {
+  const buildError = (varName: string): Error => {
+    return new Error(`Variável de ambiente inválida: ${varName}`)
+  }
+
+  const env = {
+    recaptcha: {
+      ENABLED: false,
+      SCORE_THRESHOLD: 0,
+    },
+    email: {
+      SOURCE: '',
+      DEST: '',
+      SUBJECT: '',
+    },
+  }
+
+  if (!process.env.RECAPTCHA_ENABLED) {
+    throw buildError('RECAPTCHA_ENABLED')
+  } else {
+    env.recaptcha.ENABLED = process.env.RECAPTCHA_ENABLED === '1'
+  }
+
+  if (!process.env.RECAPTCHA_SCORE_THRESHOLD) {
+    throw buildError('RECAPTCHA_SCORE_THRESHOLD')
+  } else {
+    env.recaptcha.SCORE_THRESHOLD = Number(
+      process.env.RECAPTCHA_SCORE_THRESHOLD
+    )
+  }
+
+  if (!process.env.EMAIL_SOURCE) {
+    throw buildError('EMAIL_SOURCE')
+  } else {
+    env.email.SOURCE = process.env.EMAIL_SOURCE
+  }
+
+  if (!process.env.EMAIL_DEST) {
+    throw buildError('EMAIL_DEST')
+  } else {
+    env.email.DEST = process.env.EMAIL_DEST
+  }
+
+  if (!process.env.EMAIL_SUBJECT) {
+    throw buildError('EMAIL_SUBJECT')
+  } else {
+    env.email.SUBJECT = process.env.EMAIL_SUBJECT
+  }
+
+  return env
+}
+
+const env = loadEnv()
+
+const loadParameterStore = async () => {
+  const recaptchaSecret = await ssm.getParameter('/dom-server/recaptcha/secret')
+  return {
+    recaptchaSecret,
+  }
+}
+
+const parameterStorePromise = loadParameterStore()
+
 export async function lambdaHandler(
   event: APIGatewayProxyEvent
 ): Promise<Response> {
   try {
-    const env = loadEnvVariables()
-    logger.info('Running with env: ' + env)
+    logger.info('Env: ' + env)
     logger.info('Body: ' + event.body)
 
     if (!event.body) {
@@ -27,18 +89,10 @@ export async function lambdaHandler(
 
     const { recaptchaToken, email } = JSON.parse(event.body) as EventBody
 
-    if (!email.content) {
-      logger.warn('Invalid email content')
-      throw new ErrorResponse({
-        title: 'Email vazio',
-        detail: 'Não é possível enviar um email sem conteúdo.',
-        statusCode: StatusCodes.BAD_REQUEST,
-      })
-    }
+    validateEmail(email)
 
-    validateEmailContent(email.content)
+    await verifyRecaptchaAndSendEmail(recaptchaToken, email)
 
-    await checkRecaptchaAndSendEmail(env, recaptchaToken, email)
     logger.info('Done.')
 
     return {
@@ -58,8 +112,9 @@ export async function lambdaHandler(
   }
 }
 
-function validateEmailContent(emailContent: EmailContent) {
+function validateEmail(email: Email) {
   const buildResponseError = (detail: string): ErrorResponse => {
+    logger.warn('Invalid email content')
     return new ErrorResponse({
       title: 'Conteúdo do e-mail é inválido',
       detail,
@@ -67,11 +122,15 @@ function validateEmailContent(emailContent: EmailContent) {
     })
   }
 
-  if (!emailContent.customerInfo) {
+  if (!email.content) {
+    throw buildResponseError('Não é possível enviar um email sem conteúdo.')
+  }
+
+  if (!email.content.customerInfo) {
     throw buildResponseError('Propriedade "customerInfo" é inválida.')
   }
 
-  const { name, emailAddress } = emailContent.customerInfo
+  const { name, emailAddress } = email.content.customerInfo
 
   if (!name) {
     throw buildResponseError('Propriedade "customerInfo.name" é inválida.')
@@ -83,16 +142,16 @@ function validateEmailContent(emailContent: EmailContent) {
     )
   }
 
-  if (!emailContent.cartItems) {
+  if (!email.content.cartItems) {
     throw buildResponseError('Propriedade "cartItems" é inválida.')
   }
 
-  if (!emailContent.cartItems.length) {
+  if (!email.content.cartItems.length) {
     throw buildResponseError('Propriedade "cartItems" está vazia.')
   }
 
   let isCartItemsValid = true
-  for (const cartItem of emailContent.cartItems) {
+  for (const cartItem of email.content.cartItems) {
     if (
       !cartItem.product ||
       !cartItem.product.reference ||
@@ -109,43 +168,47 @@ function validateEmailContent(emailContent: EmailContent) {
   }
 }
 
-async function checkRecaptchaAndSendEmail(
-  env: Env,
+async function verifyRecaptchaAndSendEmail(
   recaptchaToken: string,
   email: Email
 ) {
-  const recaptchaEnabled = env.recaptcha.ENABLED === '1'
-  if (recaptchaEnabled) {
-    const recaptchaSecret = await ssm.getParameter(
-      '/dom-server/recaptcha/secret'
-    )
-
-    if (!recaptchaSecret) {
-      logger.warn('reCAPTCHA secret not set')
-      throw new ErrorResponse({
-        title: 'Ocorreu um erro ao verificar o reCAPTCHA',
-        detail: 'Parâmetro com segredo não foi atribuído no SSM.',
-        statusCode: StatusCodes.BAD_REQUEST,
-      })
-    }
-
-    logger.info('Checking reCAPTCHA')
-    const isValidToken = await recaptcha.isValidToken({
-      secret: recaptchaSecret,
-      scoreThreshold: Number(env.recaptcha.SCORE_THRESHOLD),
-      token: recaptchaToken,
-    })
-
-    if (!isValidToken) {
-      logger.warn('Invalid reCAPTCHA')
-      throw new ErrorResponse({
-        title: 'reCAPTCHA inválido',
-        detail: 'Token do reCAPTCHA não é válido.',
-        statusCode: StatusCodes.BAD_REQUEST,
-      })
-    }
+  if (env.recaptcha.ENABLED) {
+    await verifyRecaptcha(recaptchaToken)
   }
 
+  await sendEmail(email)
+}
+
+async function verifyRecaptcha(recaptchaToken: string) {
+  const { recaptchaSecret } = await parameterStorePromise
+
+  if (!recaptchaSecret) {
+    logger.warn('reCAPTCHA secret not set')
+    throw new ErrorResponse({
+      title: 'Ocorreu um erro ao verificar o reCAPTCHA',
+      detail: 'Parâmetro com segredo não foi atribuído no SSM.',
+      statusCode: StatusCodes.BAD_REQUEST,
+    })
+  }
+
+  logger.info('Verifying reCAPTCHA')
+  const isValidToken = await recaptcha.isValidToken({
+    secret: recaptchaSecret,
+    scoreThreshold: env.recaptcha.SCORE_THRESHOLD,
+    token: recaptchaToken,
+  })
+
+  if (!isValidToken) {
+    logger.warn('Invalid reCAPTCHA')
+    throw new ErrorResponse({
+      title: 'reCAPTCHA inválido',
+      detail: 'Token do reCAPTCHA não é válido.',
+      statusCode: StatusCodes.BAD_REQUEST,
+    })
+  }
+}
+
+async function sendEmail(email: Email) {
   logger.info('Compiling HTML content')
   const htmlContent = compileContentToHTML(email.content)
 
@@ -158,58 +221,4 @@ async function checkRecaptchaAndSendEmail(
       htmlContent,
     },
   })
-}
-
-function loadEnvVariables(): Env {
-  const buildResponseError = (varName: string): ErrorResponse => {
-    return new ErrorResponse({
-      title: 'Erro de ambiente',
-      detail: `Variável de ambiente "${varName}" não definida.`,
-      statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
-    })
-  }
-
-  const env = {
-    recaptcha: {
-      ENABLED: '',
-      SCORE_THRESHOLD: '',
-    },
-    email: {
-      SOURCE: '',
-      DEST: '',
-      SUBJECT: '',
-    },
-  }
-
-  if (!process.env.RECAPTCHA_ENABLED) {
-    throw buildResponseError('RECAPTCHA_ENABLED')
-  } else {
-    env.recaptcha.ENABLED = process.env.RECAPTCHA_ENABLED
-  }
-
-  if (!process.env.RECAPTCHA_SCORE_THRESHOLD) {
-    throw buildResponseError('RECAPTCHA_SCORE_THRESHOLD')
-  } else {
-    env.recaptcha.SCORE_THRESHOLD = process.env.RECAPTCHA_SCORE_THRESHOLD
-  }
-
-  if (!process.env.EMAIL_SOURCE) {
-    throw buildResponseError('EMAIL_SOURCE')
-  } else {
-    env.email.SOURCE = process.env.EMAIL_SOURCE
-  }
-
-  if (!process.env.EMAIL_DEST) {
-    throw buildResponseError('EMAIL_DEST')
-  } else {
-    env.email.DEST = process.env.EMAIL_DEST
-  }
-
-  if (!process.env.EMAIL_SUBJECT) {
-    throw buildResponseError('EMAIL_SUBJECT')
-  } else {
-    env.email.SUBJECT = process.env.EMAIL_SUBJECT
-  }
-
-  return env
 }

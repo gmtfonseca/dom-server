@@ -2,4 +2,4 @@
 
 tsc --project ./
 cp -f package.json dist/package.json
-sam build
+sam.cmd build

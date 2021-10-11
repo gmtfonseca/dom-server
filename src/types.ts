@@ -4,8 +4,8 @@ export interface Env {
 }
 
 interface EnvRecaptcha {
-  ENABLED: string
-  SCORE_THRESHOLD: string
+  ENABLED: boolean
+  SCORE_THRESHOLD: number
 }
 
 interface EnvEmail {
