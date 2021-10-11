@@ -12,15 +12,17 @@ export default {
   sendEmail: async function (
     input: SendEmailInput
   ): Promise<SendEmailCommandOutput> {
-    const { source, dest, email } = input
+    const { source, dest, compiledEmail } = input
     const params = {
       Destination: {
         ToAddresses: dest,
       },
       Message: {
-        Subject: { Data: email.subject },
+        Subject: { Data: compiledEmail.subject },
         Body: {
-          Text: { Data: email.content },
+          Html: {
+            Data: compiledEmail.htmlContent,
+          },
         },
       },
       Source: source,

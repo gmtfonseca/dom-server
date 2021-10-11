@@ -1,26 +1,17 @@
 export interface Env {
-  recaptcha: RecaptchaEnv
-  email: EmailEnv
+  NODE_ENV: string
+  recaptcha: EnvRecaptcha
+  email: EnvEmail
 }
 
-interface RecaptchaEnv {
+interface EnvRecaptcha {
   SCORE_THRESHOLD: string
 }
 
-interface EmailEnv {
+interface EnvEmail {
   SOURCE: string
   DEST: string
   SUBJECT: string
-}
-
-export interface RecapatchaInput {
-  token: string
-  secret: string
-}
-
-export interface EventBody {
-  recaptchaToken: string
-  email: Email
 }
 
 export interface HttpHeaders {
@@ -49,16 +40,49 @@ export interface IsValidTokenInput {
   token: string
 }
 
+export interface EventBody {
+  recaptchaToken: string
+  email: Email
+}
+
 export interface Email {
   subject: string
-  content: string
+  content: EmailContent
+}
+
+export interface EmailContent {
+  customerInfo: CustomerInfo
+  customized: boolean
+  cartItems: CartItem[]
+}
+
+export interface CustomerInfo {
+  name: string
+  emailAddress: string
+}
+
+export interface CartItem {
+  product: Product
+  quantity: number
+}
+
+export interface Product {
+  reference: string
+  name: string
+}
+
+export interface CompiledEmail {
+  subject: string
+  htmlContent: string
 }
 
 export interface SendEmailInput {
   source: string
   dest: string[]
-  email: Email
+  compiledEmail: CompiledEmail
 }
+
+export type CompileContentToHTMLInput = EmailContent
 
 export interface RecaptchaResponse {
   success: boolean

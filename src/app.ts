@@ -1,7 +1,8 @@
 import { APIGatewayProxyEvent } from 'aws-lambda'
 import { StatusCodes } from 'http-status-codes'
 import { ErrorResponse } from './util'
-import { Email, Env, EventBody, RecapatchaInput, Response } from './types'
+import { Email, EmailContent, Env, EventBody, Response } from './types'
+import { compileContentToHTML } from './template'
 import recaptcha from './recaptcha'
 import ses from './ses'
 import ssm from './ssm'
@@ -34,26 +35,11 @@ export async function lambdaHandler(
       })
     }
 
-    const recaptchaSecret = await ssm.getParameter(
-      '/dom-server/recaptcha/secret'
-    )
+    validateEmailContent(email.content)
 
-    if (!recaptchaSecret) {
-      console.warn('Recaptcha secret not set')
-      throw new ErrorResponse({
-        title: 'Ocorreu um erro ao verificar o reCAPTCHA',
-        detail: 'Parâmetro com segredo não foi atribuído no SSM.',
-        statusCode: StatusCodes.BAD_REQUEST,
-      })
-    }
-
-    await checkRecaptchaAndSendEmail(
-      env,
-      { token: recaptchaToken, secret: recaptchaSecret },
-      email
-    )
-
+    await checkRecaptchaAndSendEmail(env, recaptchaToken, email)
     console.info('Done.')
+
     return {
       headers: { 'Content-Type': 'application/json' },
       body: {
@@ -71,6 +57,107 @@ export async function lambdaHandler(
   }
 }
 
+function validateEmailContent(emailContent: EmailContent) {
+  const buildResponseError = (detail: string): ErrorResponse => {
+    return new ErrorResponse({
+      title: 'Conteúdo do e-mail é inválido',
+      detail,
+      statusCode: StatusCodes.BAD_REQUEST,
+    })
+  }
+
+  if (!emailContent.customerInfo) {
+    throw buildResponseError('Propriedade "customerInfo" é inválida.')
+  }
+
+  const { name, emailAddress } = emailContent.customerInfo
+
+  if (!name) {
+    throw buildResponseError('Propriedade "customerInfo.name" é inválida.')
+  }
+
+  if (!emailAddress) {
+    throw buildResponseError(
+      'Propriedade "customerInfo.emailAddress" é inválida.'
+    )
+  }
+
+  if (!emailContent.cartItems) {
+    throw buildResponseError('Propriedade "cartItems" é inválida.')
+  }
+
+  if (!emailContent.cartItems.length) {
+    throw buildResponseError('Propriedade "cartItems" está vazia.')
+  }
+
+  let isCartItemsValid = true
+  for (const cartItem of emailContent.cartItems) {
+    if (
+      !cartItem.product ||
+      !cartItem.product.reference ||
+      !cartItem.product.name ||
+      !cartItem.quantity
+    ) {
+      isCartItemsValid = false
+      break
+    }
+  }
+
+  if (!isCartItemsValid) {
+    throw buildResponseError('Itens da propriedade "cartItems" são inválidos.')
+  }
+}
+
+async function checkRecaptchaAndSendEmail(
+  env: Env,
+  recaptchaToken: string,
+  email: Email
+) {
+  if (env.NODE_ENV !== 'development') {
+    const recaptchaSecret = await ssm.getParameter(
+      '/dom-server/recaptcha/secret'
+    )
+
+    if (!recaptchaSecret) {
+      console.warn('Recaptcha secret not set')
+      throw new ErrorResponse({
+        title: 'Ocorreu um erro ao verificar o reCAPTCHA',
+        detail: 'Parâmetro com segredo não foi atribuído no SSM.',
+        statusCode: StatusCodes.BAD_REQUEST,
+      })
+    }
+
+    console.info('Verifying reCAPTCHA')
+    const isValidToken = await recaptcha.isValidToken({
+      secret: recaptchaSecret,
+      scoreThreshold: Number(env.recaptcha.SCORE_THRESHOLD),
+      token: recaptchaToken,
+    })
+
+    if (!isValidToken) {
+      console.warn('Invalid recaptcha')
+      throw new ErrorResponse({
+        title: 'reCAPTCHA inválido',
+        detail: 'Token do reCAPTCHA não é válido.',
+        statusCode: StatusCodes.BAD_REQUEST,
+      })
+    }
+  }
+
+  console.info('Compiling email HTML')
+  const htmlContent = compileContentToHTML(email.content)
+
+  console.info('Sending email')
+  await ses.sendEmail({
+    source: env.email.SOURCE,
+    dest: [env.email.DEST],
+    compiledEmail: {
+      subject: email.subject || env.email.SUBJECT,
+      htmlContent,
+    },
+  })
+}
+
 function loadEnvVariables(): Env {
   const buildResponseError = (varName: string): ErrorResponse => {
     return new ErrorResponse({
@@ -81,6 +168,7 @@ function loadEnvVariables(): Env {
   }
 
   const env = {
+    NODE_ENV: '',
     recaptcha: {
       SCORE_THRESHOLD: '',
     },
@@ -89,6 +177,12 @@ function loadEnvVariables(): Env {
       DEST: '',
       SUBJECT: '',
     },
+  }
+
+  if (!process.env.NODE_ENV) {
+    throw buildResponseError('NODE_ENV')
+  } else {
+    env.NODE_ENV = process.env.NODE_ENV
   }
 
   if (!process.env.RECAPTCHA_SCORE_THRESHOLD) {
@@ -116,36 +210,4 @@ function loadEnvVariables(): Env {
   }
 
   return env
-}
-
-async function checkRecaptchaAndSendEmail(
-  env: Env,
-  recaptchaInput: RecapatchaInput,
-  email: Email
-) {
-  console.info('Verifying reCAPTCHA')
-  const isValidToken = await recaptcha.isValidToken({
-    secret: recaptchaInput.secret,
-    scoreThreshold: Number(env.recaptcha.SCORE_THRESHOLD),
-    token: recaptchaInput.token,
-  })
-
-  if (!isValidToken) {
-    console.warn('Invalid recaptcha')
-    throw new ErrorResponse({
-      title: 'reCAPTCHA inválido',
-      detail: 'Token do reCAPTCHA não é válido.',
-      statusCode: StatusCodes.BAD_REQUEST,
-    })
-  }
-
-  console.info('Sending email')
-  await ses.sendEmail({
-    source: env.email.SOURCE,
-    dest: [env.email.DEST],
-    email: {
-      subject: email.subject || env.email.SUBJECT,
-      content: email.content,
-    },
-  })
 }

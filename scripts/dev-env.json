@@ -1,0 +1,7 @@
+{
+  "Parameters": {
+    "NODE_ENV": "development",
+    "EMAIL_SOURCE": "gmtfonseca@gmail.com",
+    "EMAIL_DEST": "gustavofonseca94@gmail.com"
+  }
+}
