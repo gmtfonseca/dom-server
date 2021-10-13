@@ -1,8 +1,9 @@
 {
   "Parameters": {
     "NODE_ENV": "development",
+    "LOG_LEVEL": "info",
     "RECAPTCHA_ENABLED": 0,
-    "EMAIL_SOURCE": "",
+    "EMAIL_SOURCE": "gmtfonseca@gmail.com",
     "EMAIL_DEST": "gustavofonseca94@gmail.com"
   }
 }

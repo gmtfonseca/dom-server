@@ -38,38 +38,6 @@ const validEmailContent = {
 }
 
 describe('App', () => {
-  it('should return error when env vars are not set', async () => {
-    const OLD_ENV = process.env
-    const event = {
-      body: JSON.stringify({
-        email: {
-          content: validEmailContent,
-        },
-      }),
-    }
-
-    const clearVarAndTest = async (varName) => {
-      jest.resetModules()
-      process.env = { ...OLD_ENV }
-      process.env[varName] = ''
-
-      const res = await lambdaHandler(event)
-      expect(res.body).toMatchObject({
-        title: 'Erro de ambiente',
-        detail: `Variável de ambiente "${varName}" não definida.`,
-        statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
-      })
-
-      process.env = OLD_ENV
-    }
-
-    await clearVarAndTest('RECAPTCHA_ENABLED')
-    await clearVarAndTest('RECAPTCHA_SCORE_THRESHOLD')
-    await clearVarAndTest('EMAIL_SOURCE')
-    await clearVarAndTest('EMAIL_DEST')
-    await clearVarAndTest('EMAIL_SUBJECT')
-  })
-
   it('should return error when no body is passed', async () => {
     const event = {
       body: '',
@@ -77,30 +45,30 @@ describe('App', () => {
 
     const res = await lambdaHandler(event)
     expect(res.body).toMatchObject({
-      title: 'Corpo inválido',
-      detail: 'Nenhum corpo foi especificado na requisição.',
-      statusCode: StatusCodes.BAD_REQUEST,
-    })
-  })
-
-  it('should return error when email has no content', async () => {
-    const event = {
-      body: JSON.stringify({
-        email: {
-          content: '',
-        },
-      }),
-    }
-
-    const res = await lambdaHandler(event)
-    expect(res.body).toMatchObject({
-      title: 'Email vazio',
-      detail: 'Não é possível enviar um email sem conteúdo.',
+      title: 'Body inválido',
+      detail: 'Nenhum body foi especificado na requisição.',
       statusCode: StatusCodes.BAD_REQUEST,
     })
   })
 
   describe('Email content validation', () => {
+    it('should return error when email has no content', async () => {
+      const event = {
+        body: JSON.stringify({
+          email: {
+            content: '',
+          },
+        }),
+      }
+
+      const res = await lambdaHandler(event)
+      expect(res.body).toMatchObject({
+        title: 'Conteúdo do e-mail é inválido',
+        detail: 'Não é possível enviar um email sem conteúdo.',
+        statusCode: StatusCodes.BAD_REQUEST,
+      })
+    })
+
     it('should return customerInfo error', async () => {
       const emailContent = deepCopy(validEmailContent)
       emailContent.customerInfo = null

@@ -1,14 +1,15 @@
-export interface Env {
-  recaptcha: EnvRecaptcha
-  email: EnvEmail
+export interface EnvVars {
+  recaptcha: EnvVarsRecaptcha
+  email: EnvVarsEmail
 }
 
-interface EnvRecaptcha {
+interface EnvVarsRecaptcha {
   ENABLED: boolean
   SCORE_THRESHOLD: number
+  SECRET?: string
 }
 
-interface EnvEmail {
+interface EnvVarsEmail {
   SOURCE: string
   DEST: string
   SUBJECT: string

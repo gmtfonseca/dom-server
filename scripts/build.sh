@@ -2,4 +2,9 @@
 
 tsc --project ./
 cp -f package.json dist/package.json
-sam.cmd build
+
+if [[ "$OSTYPE" == "darwin"* ]]; then
+  sam build
+else
+  sam.cmd build
+fi

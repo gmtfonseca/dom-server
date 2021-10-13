@@ -18,6 +18,7 @@ Resources:
       Environment:
         Variables:
           NODE_ENV: production
+          LOG_LEVEL: warn
           RECAPTCHA_ENABLED: 1
           RECAPTCHA_SCORE_THRESHOLD: 0.5
           EMAIL_SOURCE: gmtfonseca@gmail.com
