@@ -6,12 +6,12 @@ export function compileContentToHTML(input: CompileContentToHTMLInput): string {
       return `<tr>
               <td class="align-center">${cartItem.product.reference}</td>
               <td class="align-left">${cartItem.product.name}</td>
-              <td class="align-center">${cartItem.quantity}</td>
+              <td class="align-right">${cartItem.quantity}</td>
             </tr>`
     })
     .join('')
 
-  return `
+  const template = `
   <html>
     <head>
       <style>
@@ -69,6 +69,10 @@ export function compileContentToHTML(input: CompileContentToHTMLInput): string {
         .text-sm {
           font-size: 15px;
         }
+
+        .mr-1 {
+          margin-right: 5px;
+        }
       </style>
     </head>
 
@@ -76,17 +80,17 @@ export function compileContentToHTML(input: CompileContentToHTMLInput): string {
 
       <div id="personal">
         <p>
-          <span class="bold text-sm">Nome:</span>
+          <span class="bold text-sm mr-1">Nome:</span>          
           <span>${input.customerInfo.name}</span>
         </p>
 
         <p>
-          <span class="bold text-sm">E-mail:</span>
+          <span class="bold text-sm mr-1">E-mail:</span>          
           <span>${input.customerInfo.emailAddress}</span>
         </p>
 
         <p>
-          <span class="bold text-sm">Deseja customizar com sua marca?</span>
+          <span class="bold text-sm mr-1">Deseja customizar com sua marca?</span>          
           <span>${input.customized ? 'Sim' : 'Não'}</span>
         </p>
       </div>
@@ -95,7 +99,7 @@ export function compileContentToHTML(input: CompileContentToHTMLInput): string {
         <thead>
           <th class="align-center">Referência</th>
           <th class="align-left">Nome</th>
-          <th class="align-center">Quantidade</th>
+          <th class="align-right">Quantidade</th>
         </thead>
         <tbody>
           ${cartItemsTable}
@@ -105,4 +109,10 @@ export function compileContentToHTML(input: CompileContentToHTMLInput): string {
 
   </html>
   `
+
+  return minified(template)
+}
+
+function minified(str: string) {
+  return str.trim().replace(/^\s+|\r\n|\n|\r|(>)\s+(<)|\s+$/gm, '$1$2')
 }

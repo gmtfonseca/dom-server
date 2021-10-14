@@ -2,10 +2,6 @@ AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: dom-server
 
-Globals:
-  Function:
-    Timeout: 30
-
 Resources:
   SendEmailFunction:
     Type: AWS::Serverless::Function
@@ -15,6 +11,8 @@ Resources:
       Runtime: nodejs14.x
       Architectures:
         - x86_64
+      Timeout: 10
+      ReservedConcurrentExecutions: 5
       Environment:
         Variables:
           NODE_ENV: production
@@ -50,6 +48,10 @@ Resources:
           Properties:
             Path: /cart
             Method: post
+            TimeoutInMillis: 10000
+            RouteSettings:
+              ThrottlingBurstLimit: 5
+              ThrottlingRateLimit: 5
 
 Outputs:
   SendEmailApi:
