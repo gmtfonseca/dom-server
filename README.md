@@ -1,4 +1,4 @@
-#Serverless Email Sender
+# Serverless Email Sender
 
 Serverless and scalable backend designed to securely send emails.
 
