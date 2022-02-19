@@ -1,6 +1,6 @@
-# Dom server
+#Serverless Email Sender
 
-Serverless and scalable backend designed to securely send emails with customers information.
+Serverless and scalable backend designed to securely send emails.
 
 ## Services used
 
